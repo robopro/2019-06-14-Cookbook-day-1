@@ -1,9 +1,3 @@
-require_relative 'view'
-require_relative 'scrape_recipe_service'
-require 'open-uri'
-require 'nokogiri'
-require 'pry-byebug'
-
 class Controller
   def initialize(cookbook)
     @cookbook = cookbook
@@ -11,17 +5,13 @@ class Controller
   end
 
   def list
-    # first get all recipes from cookbook
     recipes = @cookbook.all
-    # send data to view
     @view.display(recipes)
   end
 
   def create
     name = @view.ask_for(:name)
-
     description = @view.ask_for(:description)
-
     prep_time = @view.ask_for(:"prep time")
 
     recipe = Recipe.new({name: name, description: description, prep_time: prep_time})
@@ -30,37 +20,43 @@ class Controller
   end
 
   def destroy
-    # display all the recipes
     list
-    # ask the user for which recipe
     index = @view.ask_for_index
-    # delete recipe from cookbook
+
     @cookbook.remove_recipe(index)
-    # show the new recipe
-    list
   end
 
-  # Scraper
   def import
-    # get ingredient from user
     ingredient = @view.ask_for(:ingredient)
 
-    # Parse data and return array of recipes
+    # Separation of concerns.
+    # Our controller isn't really responsible for scraping.
+    # But it doesn't make sense to put our scraping code in
+    # the Cookbook, or the View.
+    # So we make a custom class!
+    # That class only does _one_ thing => Hence a service!
+    # It scrapes a website for recipes, and returns an array of Recipe objects.
     recipes = ScrapeRecipeService.new(ingredient).call
 
-    # Display recipes
     @view.display(recipes)
-    # Ask user to select recipe
     index = @view.ask_for_index
-    # Store recipe in our cookbook
+
     @cookbook.add_recipe(recipes[index])
   end
 
   def mark
+    # List the recipes
     list
 
+    # Ask for the index of the recipe the user wants to change
     index = @view.ask_for_index
 
+    # Update that recipe in our Cookbook.
+    # Why?
+    # Separation of concern!
+    # The controller is not responsible for saving or updating our CSV.
+    # The controller just informs all the other parts of what they should do,
+    # and passes information back and forth.
     @cookbook.mark_as_done(index)
   end
 end
